@@ -4,11 +4,11 @@ import { CustomError, NotFoundError, UnprocessableEntityError } from '../errors'
 
 export abstract class BaseController {
 	private readonly prisma: PrismaClient;
-	private readonly modelName: string;
+	private readonly model: any;
 
-	constructor(modelName: string) {
+	constructor(model: any) {
 		this.prisma = new PrismaClient();
-		this.modelName = modelName;
+		this.model = model;
 	}
 
 	/**
@@ -16,57 +16,54 @@ export abstract class BaseController {
 	 */
 	public async index(req: Request, res: Response): Promise<void> {
 		try {
-			// Get pagination parameters from the query string
-			const page = parseInt(req.query.page as string) || 1; // Default to page 1
-			const limit = parseInt(req.query.limit as string) || 10; // Default to 10 items per page
-
-			// Calculate the number of records to skip for pagination
+			const page = parseInt(req.body.page as string) || 1;
+			const limit = parseInt(req.body.limit as string) || 10;
 			const skip = (page - 1) * limit;
-
-			// Call the getFilters method to handle dynamic filter logic
 			const filters = this.getFilters(req);
 
-			// Perform the query with filtering and pagination
-			const records = await this.prisma[this.modelName].findMany({
-				where: filters, // Apply filters
-				skip: skip, // Pagination: Skip the appropriate number of records
-				take: limit, // Pagination: Limit the number of records returned
+			const records = await this.model.findMany({
+				where: filters,
+				skip: skip,
+				take: limit,
 			});
 
-			// Get the total count of records for pagination metadata
-			const totalRecords = await this.prisma[this.modelName].count({
-				where: filters, // Apply filters
-			});
+			const totalRecords = await this.model.count({ where: filters });
 
-			// Send the response with records and pagination metadata
+			// Serialize BigInt values
+			const serializedRecords = this.serializeBigInt(records);
+
 			res.json({
-				data: records,
 				pagination: {
-					page: page,
-					limit: limit,
-					totalRecords: totalRecords,
+					page,
+					limit,
+					totalRecords,
 					totalPages: Math.ceil(totalRecords / limit),
 				},
+				data: serializedRecords,
 			});
 		} catch (error) {
 			this.handleError(error, res);
 		}
 	}
+
 	/**
 	 * Fetch a single record by ID for the model.
 	 */
 	public async show(req: Request, res: Response): Promise<void> {
 		const { id } = req.params;
 		try {
-			const record = await this.prisma[this.modelName].findUnique({
+			const record = await this.model.findUnique({
 				where: { id: Number(id) },
 			});
 
 			if (!record) {
-				throw new NotFoundError(`${this.modelName} with ID ${id} not found`);
+				throw new NotFoundError(`${this.model.name} with ID ${id} not found`);
 			}
 
-			res.json(record);
+			// Serialize BigInt values
+			const serializedRecord = this.serializeBigInt(record);
+
+			res.json(serializedRecord);
 		} catch (error) {
 			this.handleError(error, res);
 		}
@@ -77,10 +74,14 @@ export abstract class BaseController {
 	 */
 	public async create(req: Request, res: Response): Promise<void> {
 		try {
-			const record = await this.prisma[this.modelName].create({
+			const record = await this.model.create({
 				data: req.body,
 			});
-			res.status(201).json(record);
+
+			// Serialize BigInt values
+			const serializedRecord = this.serializeBigInt(record);
+
+			res.status(201).json(serializedRecord);
 		} catch (error) {
 			this.handleError(error, res);
 		}
@@ -92,16 +93,19 @@ export abstract class BaseController {
 	public async update(req: Request, res: Response): Promise<void> {
 		const { id } = req.params;
 		try {
-			const record = await this.prisma[this.modelName].update({
+			const record = await this.model.update({
 				where: { id: Number(id) },
-				data: req.body,
+				data: req?.body,
 			});
 
 			if (!record) {
-				throw new NotFoundError(`${this.modelName} with ID ${id} not found`);
+				throw new NotFoundError(`${this.model.name} with ID ${id} not found`);
 			}
 
-			res.json(record);
+			// Serialize BigInt values
+			const serializedRecord = this.serializeBigInt(record);
+
+			res.json(serializedRecord);
 		} catch (error) {
 			this.handleError(error, res);
 		}
@@ -113,12 +117,12 @@ export abstract class BaseController {
 	public async destroy(req: Request, res: Response): Promise<void> {
 		const { id } = req.params;
 		try {
-			const record = await this.prisma[this.modelName].delete({
+			const record = await this.model.delete({
 				where: { id: Number(id) },
 			});
 
 			if (!record) {
-				throw new NotFoundError(`${this.modelName} with ID ${id} not found`);
+				throw new NotFoundError(`${this.model.name} with ID ${id} not found`);
 			}
 
 			res.status(204).send();
@@ -128,14 +132,12 @@ export abstract class BaseController {
 	}
 
 	/**
-	 * Generic error handling method
+	 * Handle errors gracefully.
 	 */
 	private handleError(error: any, res: Response): void {
 		if (error instanceof CustomError) {
-			// Handle known custom errors
 			res.status(error.statusCode).json(error.json());
 		} else {
-			// Handle unexpected errors
 			const internalError = new UnprocessableEntityError(error.message);
 			res.status(internalError.statusCode).json(internalError.json());
 		}
@@ -149,11 +151,26 @@ export abstract class BaseController {
 		const filters: Record<string, any> = {};
 		const query = req.body.filterConditions;
 
+		if (!query) {
+			return filters;
+		}
+
 		Object.keys(query).forEach((key) => {
 			filters[key] = query[key];
 		});
 
-		// You can add custom filter transformations here (e.g., type casting, date handling)
 		return filters;
+	}
+
+	/**
+	 * Converts BigInt fields to strings only when sending JSON responses.
+	 */
+	private serializeBigInt(data: any): any {
+		if (Array.isArray(data)) {
+			return data.map((item) => this.serializeBigInt(item));
+		} else if (typeof data === 'object' && data !== null) {
+			return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, typeof value === 'bigint' ? Number(value) : value]));
+		}
+		return data;
 	}
 }
