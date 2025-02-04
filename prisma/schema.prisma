@@ -12,3 +12,45 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum Gender {
+  Male
+  Female
+  Other
+}
+
+model PublicUser {
+  id                         BigInt    @id @default(autoincrement())
+  storefrontId               Int?
+  firstName                  String?   @db.VarChar(1500)
+  lastName                   String?   @db.VarChar(1500)
+  street1                    String?   @db.VarChar(1500)
+  street2                    String?   @db.VarChar(1500)
+  zipcode                    String?   @db.VarChar(150)
+  city                       String?   @db.VarChar(150)
+  state                      String?   @db.VarChar(150)
+  country                    String?   @db.VarChar(150)
+  email                      String    @db.VarChar(1500)
+  phoneNumber                String?   @db.VarChar(50)
+  isActive                   Boolean   @default(true)
+  password                   String    @db.VarChar(1500)
+  resetPasswordToken         String?   @unique @db.VarChar(150)
+  verifyEmailToken           String?   @unique @db.VarChar(150)
+  isEmailVerified            Boolean   @default(false)
+  resetPasswordTokenExpireAt DateTime? @db.Timestamptz(3)
+  referralCode               String?   @db.VarChar(1500)
+  inviterReferralCode        String?   @db.VarChar(1500)
+  memberId                   String?   @db.VarChar(255)
+  dateOfBirth                DateTime? @db.Timestamptz(3)
+  createdAt                  DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt                  DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  receiveNotifications       Boolean   @default(true)
+  receiveWebPush             Boolean   @default(true)
+  isArchived                 Boolean   @default(false)
+  partnerId                  BigInt?
+  age                        Int       @default(0)
+  gender                     Gender?
+
+  @@unique([storefrontId, email])
+  @@unique([storefrontId, memberId])
+}

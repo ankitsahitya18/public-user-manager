@@ -8,7 +8,7 @@ class Router {
 
 	public async initializeRoutes(): Promise<void> {
 		await initializeApiRoutes();
-		this.app.use(apiRoutes);
+		this.app.use('/api', apiRoutes);
 		this.app.use(healthCheckRoutes);
 		this.app.use(notFoundRoutes);
 	}

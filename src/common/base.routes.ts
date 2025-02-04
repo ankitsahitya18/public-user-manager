@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import { RequestHandler, Router } from 'express';
+import { BaseController } from './base.controller';
 
 export abstract class BaseApiRoutes {
 	public router: Router;
@@ -24,37 +25,52 @@ export abstract class BaseApiRoutes {
 	 * @param controller - The controller class that contains the route methods
 	 * @param middlewares - Optional middleware array to be added to each route
 	 */
-	protected addRestRoutes(controller: any, middlewares: { [key: string]: Function[] } = {}): void {
-		const methods = Object.getOwnPropertyNames(controller.prototype);
+	protected addRestRoutes<T extends BaseController>(controller: T, middlewares: Record<string, RequestHandler[]> = {}): void {
+		const methods = this.getAllMethods(controller);
 
 		// Index Route
 		if (methods.includes('index')) {
 			const indexMiddlewares = middlewares['index'] || [];
-			this.router.get(`${this.basePath}`, [...indexMiddlewares, controller.prototype.index]);
+			this.router.post(`${this.basePath}/all`, [...indexMiddlewares, controller.index.bind(controller)]);
 		}
 
 		// Show Route
 		if (methods.includes('show')) {
 			const showMiddlewares = middlewares['show'] || [];
-			this.router.get(`${this.basePath}/:id`, [...showMiddlewares, controller.prototype.show]);
+			this.router.get(`${this.basePath}/:id`, [...showMiddlewares, controller.show.bind(controller)]);
 		}
 
 		// Create Route
 		if (methods.includes('create')) {
 			const createMiddlewares = middlewares['create'] || [];
-			this.router.post(`${this.basePath}`, [...createMiddlewares, controller.prototype.create]);
+			this.router.post(`${this.basePath}`, [...createMiddlewares, controller.create.bind(controller)]);
 		}
 
 		// Update Route
 		if (methods.includes('update')) {
 			const updateMiddlewares = middlewares['update'] || [];
-			this.router.put(`${this.basePath}/:id`, [...updateMiddlewares, controller.prototype.update]);
+			this.router.put(`${this.basePath}/:id`, [...updateMiddlewares, controller.update.bind(controller)]);
 		}
 
 		// Destroy Route
 		if (methods.includes('destroy')) {
 			const destroyMiddlewares = middlewares['destroy'] || [];
-			this.router.delete(`${this.basePath}/:id`, [...destroyMiddlewares, controller.prototype.destroy]);
+			this.router.delete(`${this.basePath}/:id`, [...destroyMiddlewares, controller.destroy.bind(controller)]);
 		}
+	}
+
+	/**
+	 * Recursively fetch all method names from the prototype chain (excluding Object methods).
+	 */
+	private getAllMethods(obj: any): string[] {
+		let methods: string[] = [];
+		let prototype = Object.getPrototypeOf(obj);
+
+		while (prototype && prototype !== Object.prototype) {
+			methods = methods.concat(Object.getOwnPropertyNames(prototype).filter((method) => method !== 'constructor' && typeof obj[method] === 'function'));
+			prototype = Object.getPrototypeOf(prototype);
+		}
+
+		return [...new Set(methods)]; // Remove duplicates
 	}
 }

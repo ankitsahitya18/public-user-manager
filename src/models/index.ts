@@ -4,6 +4,4 @@ const xprisma = prisma.$extends({
 	query: {},
 });
 
-const models = {};
-
-export default models;
+export const PublicUser = xprisma.publicUser;
