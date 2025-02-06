@@ -67,7 +67,9 @@ export abstract class BaseApiRoutes {
 		let prototype = Object.getPrototypeOf(obj);
 
 		while (prototype && prototype !== Object.prototype) {
-			methods = methods.concat(Object.getOwnPropertyNames(prototype).filter((method) => method !== 'constructor' && typeof obj[method] === 'function'));
+			methods = methods.concat(
+				Object.getOwnPropertyNames(prototype).filter((method) => method !== 'constructor' && typeof obj[method] === 'function')
+			);
 			prototype = Object.getPrototypeOf(prototype);
 		}
 
