@@ -5,3 +5,4 @@ const xprisma = prisma.$extends({
 });
 
 export const PublicUser = xprisma.publicUser;
+export const StorefrontProgram = xprisma.storefrontProgram;

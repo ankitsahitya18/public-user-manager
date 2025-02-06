@@ -42,15 +42,25 @@ model PublicUser {
   inviterReferralCode        String?   @db.VarChar(1500)
   memberId                   String?   @db.VarChar(255)
   dateOfBirth                DateTime? @db.Timestamptz(3)
-  createdAt                  DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt                  DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
   receiveNotifications       Boolean   @default(true)
   receiveWebPush             Boolean   @default(true)
   isArchived                 Boolean   @default(false)
   partnerId                  BigInt?
   age                        Int       @default(0)
   gender                     Gender?
+  createdAt                  DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt                  DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
 
   @@unique([storefrontId, email])
   @@unique([storefrontId, memberId])
+}
+
+model StorefrontProgram {
+  id           BigInt   @id @default(autoincrement())
+  storefrontId Int?
+  programId    Int?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@unique([storefrontId, programId])
 }
